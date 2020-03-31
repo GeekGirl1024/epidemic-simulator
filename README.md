@@ -1,0 +1,2 @@
+# epidemic-simulator
+Epidemic Simulator
