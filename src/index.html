@@ -1,0 +1,61 @@
+<html>
+    <head>
+        <link rel="stylesheet" href="style.css" type="text/css" media="all" />
+        <script type="text/javascript" src="main.js"></script>
+    </head>
+    <body>
+        Particle Count<input id="particleCount" value="100" /><br />
+        Infection Rate<input id="infectionRate" value="0.05" /><br />
+        Infection Radius<input id="infectionRadius" value="0.05" /><br />
+        Initial Infection Count<input id="initialInfectionCount" value="1"/><br />
+        <button id="goButton" value="go" >Go</button>
+        <br />
+        <canvas id="outbreakCanvas" width="300px" height="300px"></canvas>
+        <script type="text/javascript">
+            var goButton = document.getElementById("goButton");
+            var world;
+
+            class World{
+                constructor(infectionRate, infectionRadius, particleCount){
+                    this.infectionRate = infectionRate;
+                    this.infectionRadius = infectionRadius;
+                    this.particleCount = particleCount;
+                    this.outbreak = new Outbreak("outbreakCanvas", infectionRate, infectionRadius, particleCount);
+                    this.outbreak.init();
+                    var initialInfectionCount = document.getElementById("initialInfectionCount").value;
+                    for (var i = 0; i < initialInfectionCount; i++){
+                        this.outbreak.particles[i].infected = true;
+
+                    }
+                    
+                    this.go = false;
+                }
+
+                loop(){
+                    this.outbreak.step();
+                    this.outbreak.draw();
+                    
+                    if (this.go){
+                        window.requestAnimationFrame(this.loop.bind(this));
+                    }
+                }
+            }
+            function StartWorld(){
+                if (world){
+                    world.go = false;
+                    delete world;
+                }
+                var particleCount = document.getElementById("particleCount").value;
+                var infectionRate = document.getElementById("infectionRate").value;
+                var infectionRadius = document.getElementById("infectionRadius").value;
+
+                world = new World(infectionRate, infectionRadius, particleCount);
+                world.go = true;
+                world.loop();
+            }
+
+            goButton.onmouseup=StartWorld;
+            StartWorld();
+        </script>
+    </body>
+</html>
