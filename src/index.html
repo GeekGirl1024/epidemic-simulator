@@ -2,59 +2,100 @@
     <head>
         <link rel="stylesheet" href="style.css" type="text/css" media="all" />
         <script type="text/javascript" src="main.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.js"></script>
+        <script type="text/javascript" src="graph.js"></script>
     </head>
     <body>
         Particle Count<input id="particleCount" value="100" /><br />
-        Infection Rate<input id="infectionRate" value="0.05" /><br />
-        Infection Radius<input id="infectionRadius" value="0.05" /><br />
+        Infection Rate<input id="infectionRate" value="0.1" /><br />
+        Infection Radius<input id="infectionRadius" value="0.03" /><br />
         Initial Infection Count<input id="initialInfectionCount" value="1"/><br />
+        Death Rate<input id="deathRate" value="0.01" /><br />
+        Cure Rate<input id="cureRate" value="0.01"/><br />
+        Reinfection Rate<input id="reinfectionRate" value="0.01"/><br />
+        Social Distancing<input id="socialDistancing" value="0.05" /><br />
+        Social Distancing Start<input id="socialDistancingStart" value="10" /><br />
         <button id="goButton" value="go" >Go</button>
+        <button id="pauseButton" value="pause" >Pause</button>
         <br />
-        <canvas id="outbreakCanvas" width="300px" height="300px"></canvas>
+        <div width="300px" height="300px">
+            <canvas id="outbreakCanvas" width="300px" height="300px" style="background: black;"></canvas>
+        </div>
+        <br />
+        <div width="300px" height="300px" style="width:400px; height:300px">
+            <canvas id="outbreakChart" width="300" height="300" style="background: black;"></canvas>
+        </div>
         <script type="text/javascript">
             var goButton = document.getElementById("goButton");
+            var pauseButton = document.getElementById("pauseButton");
             var world;
 
             class World{
-                constructor(infectionRate, infectionRadius, particleCount){
-                    this.infectionRate = infectionRate;
-                    this.infectionRadius = infectionRadius;
-                    this.particleCount = particleCount;
-                    this.outbreak = new Outbreak("outbreakCanvas", infectionRate, infectionRadius, particleCount);
+                constructor(infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart){
+                    this.outbreak = new Outbreak("outbreakCanvas", infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart);
                     this.outbreak.init();
                     var initialInfectionCount = document.getElementById("initialInfectionCount").value;
                     for (var i = 0; i < initialInfectionCount; i++){
-                        this.outbreak.particles[i].infected = true;
-
+                        this.outbreak.particles[i].health = HEALTH.infected;
                     }
+
+                    this.outbreakGraph = new Graph("outbreakChart");
                     
                     this.go = false;
+                    this.refreshState = 0;
+                    this.refreshRate = 60;
+
                 }
 
                 loop(){
                     this.outbreak.step();
                     this.outbreak.draw();
-                    
+                    if (this.refreshState === this.refreshRate){
+                        var increment = [this.outbreak.normalCount, this.outbreak.infectedCount, this.outbreak.cureCount, this.outbreak.deathCount]
+                        this.outbreakGraph.update(increment);
+                        this.refreshState = 0;
+                        if (this.outbreak.infectedCount === 0){
+                            return;
+                        }
+                    }
                     if (this.go){
+                        this.refreshState++;
                         window.requestAnimationFrame(this.loop.bind(this));
                     }
                 }
             }
+
             function StartWorld(){
                 if (world){
                     world.go = false;
                     delete world;
                 }
-                var particleCount = document.getElementById("particleCount").value;
-                var infectionRate = document.getElementById("infectionRate").value;
-                var infectionRadius = document.getElementById("infectionRadius").value;
+                var particleCount = parseFloat(document.getElementById("particleCount").value);
+                var infectionRate = parseFloat(document.getElementById("infectionRate").value);
+                var infectionRadius = parseFloat(document.getElementById("infectionRadius").value);
+                var deathRate = parseFloat(document.getElementById("deathRate").value);
+                var cureRate = parseFloat(document.getElementById("cureRate").value);
+                var reinfectionRate = parseFloat(document.getElementById("reinfectionRate").value);
+                var socialDistancing = parseFloat(document.getElementById("socialDistancing").value);
+                var socialDistancingStart = parseFloat(document.getElementById("socialDistancingStart").value);
 
-                world = new World(infectionRate, infectionRadius, particleCount);
+                world = new World(infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart);
                 world.go = true;
                 world.loop();
             }
 
+            function PauseWorld(){
+                world.go = !world.go;
+                if (world.go){
+                    world.loop();
+                }
+            }
+
             goButton.onmouseup=StartWorld;
+            pauseButton.onmouseup=PauseWorld;
+
+            
+
             StartWorld();
         </script>
     </body>
