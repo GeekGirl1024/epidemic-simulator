@@ -51,6 +51,15 @@ class Graph{
         this.data.datasets[3].data.push(increment[3]);
         this.chart.update();
     }
+
+    reset(){
+        this.data.labels=[];
+        this.data.datasets[0].data=[];
+        this.data.datasets[1].data=[];
+        this.data.datasets[2].data=[];
+        this.data.datasets[3].data=[];
+        this.chart.reset();
+    }
 }
 
 

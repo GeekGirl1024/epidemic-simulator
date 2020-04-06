@@ -47,11 +47,22 @@
 
                 }
 
+                reset(infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart){
+                    this.outbreak = new Outbreak("outbreakCanvas", infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart);
+                    this.outbreak.init();
+                    var initialInfectionCount = document.getElementById("initialInfectionCount").value;
+                    for (var i = 0; i < initialInfectionCount; i++){
+                        this.outbreak.particles[i].health = HEALTH.infected;
+                    }
+                    this.go = false;
+                    this.outbreakGraph.reset();
+                }
+
                 loop(){
                     this.outbreak.step();
                     this.outbreak.draw();
                     if (this.refreshState === this.refreshRate){
-                        var increment = [this.outbreak.normalCount, this.outbreak.infectedCount, this.outbreak.cureCount, this.outbreak.deathCount]
+                        var increment = [this.outbreak.normalCount, this.outbreak.infectedCount, this.outbreak.cureCount, this.outbreak.deathCount];
                         this.outbreakGraph.update(increment);
                         this.refreshState = 0;
                         if (this.outbreak.infectedCount === 0){
@@ -66,10 +77,6 @@
             }
 
             function StartWorld(){
-                if (world){
-                    world.go = false;
-                    delete world;
-                }
                 var particleCount = parseFloat(document.getElementById("particleCount").value);
                 var infectionRate = parseFloat(document.getElementById("infectionRate").value);
                 var infectionRadius = parseFloat(document.getElementById("infectionRadius").value);
@@ -79,7 +86,12 @@
                 var socialDistancing = parseFloat(document.getElementById("socialDistancing").value);
                 var socialDistancingStart = parseFloat(document.getElementById("socialDistancingStart").value);
 
-                world = new World(infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart);
+                if (world){
+                    world.go = false;
+                    world.reset(infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart);
+                } else {
+                    world = new World(infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart);
+                }
                 world.go = true;
                 world.loop();
             }
