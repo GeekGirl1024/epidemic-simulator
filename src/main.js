@@ -6,6 +6,61 @@ const HEALTH = {
 }
 Object.freeze(HEALTH);
 
+class ListNode{
+    constructor(data){
+        this.data = data;
+        this.prev = null;
+        this.next = null;
+    }
+}
+
+class List{
+    constructor(){
+        this.length = 0;
+        this.head = null;
+        this.end = null;
+    }
+
+    remove(node){
+        let prev = node.prev;
+        let next = node.next;
+        if (prev) {
+            prev.next = next;
+        } else {
+            this.head = next;
+        }
+
+        if (next){
+            next.prev = prev;
+        } else {
+            this.end = prev;
+        }
+
+        this.length--;
+    }
+
+    push(node){
+        if (this.length === 0){
+            this.head = node;
+            this.end = node;
+        } else {
+            this.end.next = node;
+            node.prev = this.end;
+            this.end = node;
+        }
+        this.length++;
+    }
+
+    pop(){
+        if (this.length === 0){
+            return null;
+        }
+        let node = this.end;
+        this.remove(this.end);
+        return node;
+    }
+}
+
 class Vector{
     constructor(x,y) {
         this.x = x;
@@ -158,7 +213,7 @@ class Connection{
 
 class Outbreak{
     constructor(canvasId, infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart){
-        this.particles = [];
+        this.particles = new List();
         this.canvasId = canvasId;
         this.canvas = document.getElementById(this.canvasId);
         this.context = this.canvas.getContext("2d");
@@ -181,73 +236,68 @@ class Outbreak{
 
     init(){
         for (let i=0; i < this.particleCount; i++){
-            this.particles.push(this.randomParticle());
+            this.particles.push(new ListNode(this.randomParticle()));
         }
     }
 
-    step(){
-        this.refreshState++;
-        let updateConnections = false;
-        if (this.refreshRate <= this.refreshState){
-            updateConnections = true;
-            this.refreshState = 0;
-        }
-        let nextStepConnections = [];
+    recalculateCounts(){
         this.infectedCount = 0;
         this.normalCount = 0;
         this.cureCount = 0;
         this.deathCount = 0;
 
-        for (var i = 0; i < this.particles.length; i++){
-            this.particles[i].socialDistancingVelocity = new Vector(0,0);
-            if (this.particles[i].health === HEALTH.normal){
+        let current = this.particles.head;
+        while(current){
+            let particle = current.data;
+            particle.socialDistancingVelocity = new Vector(0,0);
+            if (particle.health === HEALTH.normal){
                 this.normalCount++;
-            } else if (this.particles[i].health === HEALTH.infected){
+            } else if (particle.health === HEALTH.infected){
                 this.infectedCount++;
-            } else if (this.particles[i].health === HEALTH.cured){
+            } else if (particle.health === HEALTH.cured){
                 this.cureCount++;
-            } else if (this.particles[i].health === HEALTH.died){
+            } else if (particle.health === HEALTH.died){
                 this.deathCount++;
             }
+            current = current.next;
         }
+    }
 
-        for (var i = 0; i < this.particles.length; i++){
-            if (updateConnections) {
-                for (var j = 0; j < i; j++){
-                    let distance = Vector.distance(this.particles[i].position,this.particles[j].position);
-                    if (distance < this.infectionRadius){
-                        if (this.particles[i].health === HEALTH.infected && this.particles[j].health === HEALTH.normal
-                            || this.particles[i].health === HEALTH.normal && this.particles[j].health === HEALTH.infected){
-                            nextStepConnections.push(new Connection(i, j));
-                        }
-                        if (this.particles[i].health === HEALTH.infected && this.particles[j].health === HEALTH.cured
-                            || this.particles[i].health === HEALTH.cured && this.particles[j].health === HEALTH.infected){
-                            nextStepConnections.push(new Connection(i, j));
-                        }
-                    }
-
-                    if (distance < this.socialDistancing && (this.infectedCount + this.cureCount + this.deathCount) >= this.socialDistancingStart){
-                        if (!(this.particles[i].health === HEALTH.died || this.particles[j].health === HEALTH.died)){
-                            var repelvector = Vector.sub(this.particles[i].position, this.particles[j].position).unitize().scale(this.socialDistancing - distance);
-                            this.particles[i].socialDistancingVelocity.add(repelvector);
-                            this.particles[j].socialDistancingVelocity.sub(repelvector);
-                        }
+    getNextConnectionsAndCalculateSocalDistancingVelocity(){
+        let nextStepConnections = [];
+        let current = this.particles.head;
+        while (current){
+            let currentParticle = current.data;
+            let otherCurrent = this.particles.head;
+            while(otherCurrent !== current){
+                let otherCurrentParticle = otherCurrent.data;
+                let distance = Vector.distance(currentParticle.position,otherCurrentParticle.position);
+                if (distance < this.infectionRadius){
+                    if (currentParticle.health === HEALTH.infected && otherCurrentParticle.health === HEALTH.normal
+                        || currentParticle.health === HEALTH.normal && otherCurrentParticle.health === HEALTH.infected){
+                        nextStepConnections.push(new Connection(currentParticle, otherCurrentParticle));
+                    } else if (currentParticle.health === HEALTH.infected && otherCurrentParticle.health === HEALTH.cured
+                        || currentParticle.health === HEALTH.cured && otherCurrentParticle.health === HEALTH.infected){
+                        nextStepConnections.push(new Connection(currentParticle, otherCurrentParticle));
                     }
                 }
+
+                if (distance < this.socialDistancing && (this.infectedCount + this.cureCount + this.deathCount) >= this.socialDistancingStart){
+                    if (!(currentParticle.health === HEALTH.died || otherCurrentParticle.health === HEALTH.died)){
+                        var repelvector = Vector.sub(currentParticle.position, otherCurrentParticle.position).unitize().scale(this.socialDistancing - distance);
+                        currentParticle.socialDistancingVelocity.add(repelvector);
+                        otherCurrentParticle.socialDistancingVelocity.sub(repelvector);
+                    }
+                }
+                otherCurrent = otherCurrent.next;
             }
-
+            current = current.next;
 
         }
+        return nextStepConnections;
+    }
 
-        for (var i = 0; i < this.particles.length; i++){
-            this.particles[i].step();
-        }
-
-        if (!updateConnections){
-            return;
-        }
-
-        var foundCounter = 0;
+    updateInfections(nextStepConnections){
         for (var i = 0; i < nextStepConnections.length; i++){
             let found = false;
             for (var j = 0; j < this.connections.length; j++){
@@ -258,12 +308,11 @@ class Outbreak{
             }
 
             if (found){
-                foundCounter++;
                 continue;
             }
 
-            let particle1 = this.particles[nextStepConnections[i].node1];
-            let particle2 = this.particles[nextStepConnections[i].node2];
+            let particle1 = nextStepConnections[i].node1;
+            let particle2 = nextStepConnections[i].node2;
 
             if (particle1.health === HEALTH.infected && particle2.health === HEALTH.normal){
                 if (Math.random() < this.infectionRate) {
@@ -276,11 +325,11 @@ class Outbreak{
             }
 
             if (particle1.health === HEALTH.infected && particle2.health === HEALTH.cured){
-                if (Math.random() < this.infectionRate) {
+                if (Math.random() < this.reinfectionRate) {
                     particle2.health = HEALTH.infected;
                 }
             } else if (particle1.health === HEALTH.cured && particle2.health === HEALTH.infected){
-                if (Math.random() < this.infectionRate) {
+                if (Math.random() < this.reinfectionRate) {
                     particle1.health = HEALTH.infected;
                 }
             }
@@ -289,24 +338,59 @@ class Outbreak{
         this.connections = nextStepConnections;
     }
 
+    step(){
+        this.refreshState++;
+        let updateConnections = false;
+        if (this.refreshRate <= this.refreshState){
+            updateConnections = true;
+            this.refreshState = 0;
+        }
+
+        this.recalculateCounts();
+
+        
+        let nextStepConnections = [];
+
+        if (updateConnections){
+            nextStepConnections = this.getNextConnectionsAndCalculateSocalDistancingVelocity();
+        }
+
+        
+
+        let current = this.particles.head;
+        while(current){
+            current.data.step();
+            current = current.next;
+        }
+
+        if (updateConnections){
+            this.updateInfections(nextStepConnections);
+        }
+
+        
+    }
+
     draw(){
         const { width, height } = this.canvas.getBoundingClientRect();
         this.context.clearRect(0, 0, width, height);
 
-        for (var i = 0; i< this.particles.length; i++){
+        let current = this.particles.head;
+        while (current){
+            let particle = current.data;
             this.context.beginPath();
-            this.context.arc(this.particles[i].position.x * width, this.particles[i].position.y * height,2,0,2*Math.PI);
-            this.context.fillStyle = this.particles[i].color();
+            this.context.arc(particle.position.x * width, particle.position.y * height,2,0,2*Math.PI);
+            this.context.fillStyle = particle.color();
             this.context.fill();
+            current = current.next;
         }
 
         for (var i = 0; i < this.connections.length; i++) {
             this.context.beginPath();
-            let x = this.particles[this.connections[i].node1].position.x * width;
-            let y = this.particles[this.connections[i].node1].position.y * height;
+            let x = this.connections[i].node1.position.x * width;
+            let y = this.connections[i].node1.position.y * height;
             this.context.moveTo(x, y);
-            x = this.particles[this.connections[i].node2].position.x * width;
-            y = this.particles[this.connections[i].node2].position.y * height;
+            x = this.connections[i].node2.position.x * width;
+            y = this.connections[i].node2.position.y * height;
             this.context.lineTo(x, y);
             this.context.strokeStyle = '#FFFFFF';
             this.context.lineWidth = 1;
