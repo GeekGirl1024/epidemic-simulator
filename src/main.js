@@ -6,6 +6,13 @@ const HEALTH = {
 }
 Object.freeze(HEALTH);
 
+const TESTSTATUS = {
+    untested: "untested",
+    positive: "positive",
+    negative: "negative"
+}
+Object.freeze(TESTSTATUS);
+
 class ListNode{
     constructor(data){
         this.data = data;
@@ -35,6 +42,9 @@ class List{
         } else {
             this.end = prev;
         }
+
+        node.prev = null;
+        node.next = null;
 
         this.length--;
     }
@@ -123,7 +133,7 @@ class Vector{
 }
 
 class Particle{
-    constructor(deathRate, cureRate) {
+    constructor(deathRate, cureRate, testChance, testAccuracy) {
         this.position = new Vector(0, 0);
         this.velocity = new Vector(0, 0);
         this.health = HEALTH.normal;
@@ -132,6 +142,9 @@ class Particle{
         this.deathRate = deathRate;
         this.cureRate = cureRate;
         this.socialDistancingVelocity = new Vector(0,0);
+        this.testStatus = TESTSTATUS.untested;
+        this.testChance = testChance;
+        this.testAccuracy = testAccuracy;
     }
 
     color(){
@@ -149,7 +162,7 @@ class Particle{
         }
     }
 
-    step(){
+    step(testStarted){
         this.refreshState++;
         let updateState = false;
         if (this.refreshRate <= this.refreshState){
@@ -163,10 +176,21 @@ class Particle{
                 this.health = HEALTH.died;
             } else if(stateChange < this.deathRate + this.cureRate){
                 this.health = HEALTH.cured;
+                this.testStatus = TESTSTATUS.untested;
+            } else if(this.testStatus === TESTSTATUS.untested && testStarted){
+                let testState = Math.random();
+                if(testState < this.testChance) {
+                    let testResult = Math.random();
+                    if (testResult < this.testAccuracy) {
+                        this.testStatus = TESTSTATUS.positive;
+                    } else {
+                        this.testStatus = TESTSTATUS.negative;
+                    }
+                }
             }
         }
 
-        if(this.health === HEALTH.died){
+        if(this.health === HEALTH.died || this.testStatus === TESTSTATUS.position){
             return;
         }
 
@@ -212,11 +236,15 @@ class Connection{
 }
 
 class Outbreak{
-    constructor(canvasId, infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart){
+    constructor(canvasId, quarantineCanvasId, infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart){
         this.particles = new List();
+        this.quarantinedParticles = new List();
         this.canvasId = canvasId;
+        this.quarantineCanvasId = quarantineCanvasId;
         this.canvas = document.getElementById(this.canvasId);
+        this.quarantineCanvas = document.getElementById(this.quarantineCanvasId);
         this.context = this.canvas.getContext("2d");
+        this.quarantineContext = this.quarantineCanvas.getContext("2d");
         this.infectionRate = infectionRate;
         this.infectionRadius = infectionRadius;
         this.particleCount = particleCount;
@@ -225,6 +253,10 @@ class Outbreak{
         this.reinfectionRate = reinfectionRate;
         this.socialDistancing = socialDistancing;
         this.socialDistancingStart = socialDistancingStart;
+        this.testChance = testChance;
+        this.testAccuracy = testAccuracy;
+        this.testStart = testStart;
+        this.testStarted = false;
         this.connections = [];
         this.refreshRate = 5;
         this.refreshState = 0;
@@ -260,6 +292,26 @@ class Outbreak{
                 this.deathCount++;
             }
             current = current.next;
+        }
+
+        current = this.quarantinedParticles.head;
+        while(current){
+            let particle = current.data;
+            particle.socialDistancingVelocity = new Vector(0,0);
+            if (particle.health === HEALTH.normal){
+                this.normalCount++;
+            } else if (particle.health === HEALTH.infected){
+                this.infectedCount++;
+            } else if (particle.health === HEALTH.cured){
+                this.cureCount++;
+            } else if (particle.health === HEALTH.died){
+                this.deathCount++;
+            }
+            current = current.next;
+        }
+
+        if (!this.testStarted && this.infectedCount + this.cureCount + this.deathCount >= this.testStart) {
+            this.testStarted = true;
         }
     }
 
@@ -338,6 +390,33 @@ class Outbreak{
         this.connections = nextStepConnections;
     }
 
+    quarantine(){
+        let current = this.particles.head;
+        while (current){
+            if (current.data.testStatus === TESTSTATUS.positive){
+                let next = current.next;
+                this.particles.remove(current);
+                this.quarantinedParticles.push(current);
+                current = next;
+            } else {
+                current = current.next;
+            }
+        }
+
+        current = this.quarantinedParticles.head;
+        while (current){
+            if (current.data.health === HEALTH.cured){
+                let next = current.next;
+                this.quarantinedParticles.remove(current);
+                this.particles.push(current);
+                current.data.testStatus = TESTSTATUS.untested;
+                current = next;
+            } else {
+                current = current.next;
+            }
+        }
+    }
+
     step(){
         this.refreshState++;
         let updateConnections = false;
@@ -348,6 +427,7 @@ class Outbreak{
 
         this.recalculateCounts();
 
+        this.quarantine();
         
         let nextStepConnections = [];
 
@@ -359,7 +439,13 @@ class Outbreak{
 
         let current = this.particles.head;
         while(current){
-            current.data.step();
+            current.data.step(this.testStarted);
+            current = current.next;
+        }
+
+        current = this.quarantinedParticles.head;
+        while(current){
+            current.data.step(false);
             current = current.next;
         }
 
@@ -398,8 +484,23 @@ class Outbreak{
         }
     }
 
+    drawQuarantine(){
+        const { width, height } = this.quarantineCanvas.getBoundingClientRect();
+        this.quarantineContext.clearRect(0, 0, width, height);
+
+        let current = this.quarantinedParticles.head;
+        while (current){
+            let particle = current.data;
+            this.quarantineContext.beginPath();
+            this.quarantineContext.arc(particle.position.x * width, particle.position.y * height,2,0,2*Math.PI);
+            this.quarantineContext.fillStyle = particle.color();
+            this.quarantineContext.fill();
+            current = current.next;
+        }
+    }
+
     randomParticle(){
-        let ret = new Particle(this.deathRate, this.cureRate);
+        let ret = new Particle(this.deathRate, this.cureRate, this.testChance, this.testAccuracy);
         ret.position = new Vector(Math.random(), Math.random());
         ret.velocity = new Vector(Math.random()/100 - .005, Math.random()/100 - .005);
 
