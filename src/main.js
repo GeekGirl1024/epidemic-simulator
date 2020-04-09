@@ -147,6 +147,7 @@ class Particle{
         this.testStatus = TESTSTATUS.untested;
         this.testChance = testChance;
         this.testAccuracy = testAccuracy;
+        this.hotSpotDuration = 0;
     }
 
     color(){
@@ -238,18 +239,25 @@ class Connection{
 }
 
 class Outbreak{
-    constructor(canvasId, quarantineCanvasId, infectionRate, infectionRadius, particleCount, width, height, maxVelocity, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart){
+    constructor(canvasId, quarantineCanvasId, hotspotCanvasId, infectionRate, infectionRadius, particleCount,
+        width, height, maxVelocity, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart,
+        testChance, testAccuracy, testStart,
+        hotSpotWidth, hotSpotHeight, hotSpotMaxVelocity, hotSpotDuration, hotSpotSocialDistance, hotSpotChance){
         this.particles = new List();
         this.quarantinedParticles = new List();
+        this.hotSpotParticles = new List();
         this.width = width;
         this.height = height;
         this.maxVelocity = maxVelocity;
         this.canvasId = canvasId;
         this.quarantineCanvasId = quarantineCanvasId;
+        this.hotSpotCanvasId = hotspotCanvasId;
         this.canvas = document.getElementById(this.canvasId);
         this.quarantineCanvas = document.getElementById(this.quarantineCanvasId);
+        this.hotSpotCanvas = document.getElementById(this.hotSpotCanvasId);
         this.context = this.canvas.getContext("2d");
         this.quarantineContext = this.quarantineCanvas.getContext("2d");
+        this.hotSpotContext = this.hotSpotCanvas.getContext("2d");
         this.infectionRate = infectionRate;
         this.infectionRadius = infectionRadius;
         this.particleCount = particleCount;
@@ -261,8 +269,15 @@ class Outbreak{
         this.testChance = testChance;
         this.testAccuracy = testAccuracy;
         this.testStart = testStart;
+        this.hotSpotWidth = hotSpotWidth;
+        this.hotSpotHeight = hotSpotHeight
+        this.hotSpotMaxVelocity = hotSpotMaxVelocity;
+        this.hotSpotDuration = hotSpotDuration;
+        this.hotSpotSocialDistance = hotSpotSocialDistance;
+        this.hotSpotChance = hotSpotChance;
         this.testStarted = false;
         this.connections = [];
+        this.hotSpotConnections = [];
         this.refreshRate = 5;
         this.refreshState = 0;
         this.normalCount = 0;
@@ -300,6 +315,22 @@ class Outbreak{
         }
 
         current = this.quarantinedParticles.head;
+        while(current){
+            let particle = current.data;
+            particle.socialDistancingVelocity = new Vector(0,0);
+            if (particle.health === HEALTH.normal){
+                this.normalCount++;
+            } else if (particle.health === HEALTH.infected){
+                this.infectedCount++;
+            } else if (particle.health === HEALTH.cured){
+                this.cureCount++;
+            } else if (particle.health === HEALTH.died){
+                this.deathCount++;
+            }
+            current = current.next;
+        }
+
+        current = this.hotSpotParticles.head;
         while(current){
             let particle = current.data;
             particle.socialDistancingVelocity = new Vector(0,0);
@@ -354,6 +385,40 @@ class Outbreak{
         return nextStepConnections;
     }
 
+    getNextHotSpotConnectionsAndCalculateSocalDistancingVelocity(){
+        let nextStepConnections = [];
+        let current = this.hotSpotParticles.head;
+        while (current){
+            let currentParticle = current.data;
+            let otherCurrent = this.hotSpotParticles.head;
+            while(otherCurrent !== current){
+                let otherCurrentParticle = otherCurrent.data;
+                let distance = Vector.distance(currentParticle.position,otherCurrentParticle.position);
+                if (distance < this.infectionRadius){
+                    if (currentParticle.health === HEALTH.infected && otherCurrentParticle.health === HEALTH.normal
+                        || currentParticle.health === HEALTH.normal && otherCurrentParticle.health === HEALTH.infected){
+                        nextStepConnections.push(new Connection(currentParticle, otherCurrentParticle));
+                    } else if (currentParticle.health === HEALTH.infected && otherCurrentParticle.health === HEALTH.cured
+                        || currentParticle.health === HEALTH.cured && otherCurrentParticle.health === HEALTH.infected){
+                        nextStepConnections.push(new Connection(currentParticle, otherCurrentParticle));
+                    }
+                }
+
+                if (distance < this.hotSpotSocialDistance && (this.infectedCount + this.cureCount + this.deathCount) >= this.socialDistancingStart){
+                    if (!(currentParticle.health === HEALTH.died || otherCurrentParticle.health === HEALTH.died)){
+                        var repelvector = Vector.sub(currentParticle.position, otherCurrentParticle.position).unitize().scale(this.hotSpotSocialDistance - distance);
+                        currentParticle.socialDistancingVelocity.add(repelvector);
+                        otherCurrentParticle.socialDistancingVelocity.sub(repelvector);
+                    }
+                }
+                otherCurrent = otherCurrent.next;
+            }
+            current = current.next;
+
+        }
+        return nextStepConnections;
+    }
+
     updateInfections(nextStepConnections){
         for (var i = 0; i < nextStepConnections.length; i++){
             let found = false;
@@ -391,8 +456,6 @@ class Outbreak{
                 }
             }
         }
-
-        this.connections = nextStepConnections;
     }
 
     quarantine(){
@@ -422,6 +485,46 @@ class Outbreak{
         }
     }
 
+    hotSpot(){
+        let current = this.particles.head;
+        while (current){
+            if (Math.random() < this.hotSpotChance){
+                let next = current.next;
+                current.data.hotSpotDuration = this.hotSpotDuration;
+                current.data.width = this.hotSpotWidth;
+                current.data.height = this.hotSpotHeight;
+                current.data.position = new Vector(Math.random() * this.hotSpotWidth, Math.random() * this.hotSpotHeight);
+                let velocity = Math.random() * this.hotSpotMaxVelocity * 2 - this.hotSpotMaxVelocity;
+                let angle = Math.random()*2*Math.PI;
+                current.data.velocity = new Vector(velocity * Math.cos(angle), velocity * Math.sin(angle));
+                this.particles.remove(current);
+                this.hotSpotParticles.push(current);
+                current = next;
+            } else {
+                current = current.next;
+            }
+        }
+
+        current = this.hotSpotParticles.head;
+        while (current){
+            if (current.data.hotSpotDuration < 0){
+                let next = current.next;
+                current.data.width = this.width;
+                current.data.height = this.height;
+                current.data.position = new Vector(Math.random() * this.width, Math.random() * this.height);
+                let velocity = Math.random() * this.maxVelocity * 2 - this.maxVelocity;
+                let angle = Math.random()*2*Math.PI;
+                current.data.velocity = new Vector(velocity * Math.cos(angle), velocity * Math.sin(angle));
+                this.hotSpotParticles.remove(current);
+                this.particles.push(current);
+                current = next;
+            } else {
+                current.data.hotSpotDuration--;
+                current = current.next;
+            }
+        }
+    }
+
     step(){
         this.refreshState++;
         let updateConnections = false;
@@ -433,11 +536,15 @@ class Outbreak{
         this.recalculateCounts();
 
         this.quarantine();
+
+        this.hotSpot();
         
         let nextStepConnections = [];
+        let nextStepHotSpotConnections = [];
 
         if (updateConnections){
             nextStepConnections = this.getNextConnectionsAndCalculateSocalDistancingVelocity();
+            nextStepHotSpotConnections = this.getNextHotSpotConnectionsAndCalculateSocalDistancingVelocity();
         }
 
         
@@ -454,8 +561,17 @@ class Outbreak{
             current = current.next;
         }
 
+        current = this.hotSpotParticles.head;
+        while(current){
+            current.data.step(false);
+            current = current.next;
+        }
+
         if (updateConnections){
             this.updateInfections(nextStepConnections);
+            this.updateInfections(nextStepHotSpotConnections);
+            this.connections = nextStepConnections;
+            this.hotSpotConnections = nextStepHotSpotConnections;
         }
 
         
@@ -501,6 +617,34 @@ class Outbreak{
             this.quarantineContext.fillStyle = particle.color();
             this.quarantineContext.fill();
             current = current.next;
+        }
+    }
+
+    drawHotSpot(){
+        const { width, height } = this.hotSpotCanvas.getBoundingClientRect();
+        this.hotSpotContext.clearRect(0, 0, width, height);
+
+        let current = this.hotSpotParticles.head;
+        while (current){
+            let particle = current.data;
+            this.hotSpotContext.beginPath();
+            this.hotSpotContext.arc(particle.position.x / this.hotSpotWidth * width, particle.position.y / this.hotSpotHeight * height,2,0,2*Math.PI);
+            this.hotSpotContext.fillStyle = particle.color();
+            this.hotSpotContext.fill();
+            current = current.next;
+        }
+
+        for (var i = 0; i < this.hotSpotConnections.length; i++) {
+            this.hotSpotContext.beginPath();
+            let x = this.hotSpotConnections[i].node1.position.x / this.hotSpotWidth * width;
+            let y = this.hotSpotConnections[i].node1.position.y / this.hotSpotHeight * height;
+            this.hotSpotContext.moveTo(x, y);
+            x = this.hotSpotConnections[i].node2.position.x / this.hotSpotWidth * width;
+            y = this.hotSpotConnections[i].node2.position.y / this.hotSpotHeight * height;
+            this.hotSpotContext.lineTo(x, y);
+            this.hotSpotContext.strokeStyle = '#FFFFFF';
+            this.hotSpotContext.lineWidth = 1;
+            this.hotSpotContext.stroke();
         }
     }
 

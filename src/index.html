@@ -6,31 +6,46 @@
         <script type="text/javascript" src="graph.js"></script>
     </head>
     <body>
-        Particle Count<input id="particleCount" value="100" /><br />
-        Width<input id="width" value="300" /><br />
-        Height<input id="height" value="300" /><br />
-        Max Velocity<input id="maxVelocity" value="2" /><br />
-        Infection Rate<input id="infectionRate" value="0.1" /><br />
-        Infection Radius<input id="infectionRadius" value="9" /><br />
-        Initial Infection Count<input id="initialInfectionCount" value="1"/><br />
-        Death Rate<input id="deathRate" value="0.002" /><br />
-        Cure Rate<input id="cureRate" value="0.018"/><br />
-        Reinfection Rate<input id="reinfectionRate" value="0.01"/><br />
-        Social Distancing<input id="socialDistancing" value="21" /><br />
-        Social Distancing Start<input id="socialDistancingStart" value="10" /><br />
-        Test Chance<input id="testChance" value="0.1" /><br />
-        Test Accuracy<input id="testAccuracy" value="0.9" /><br />
-        Test Start<input id="testStart" value="15" /><br />
-        <button id="goButton" value="go" >Go</button>
-        <button id="pauseButton" value="pause" >Pause</button>
-        <br />
-        <div width="300px" height="300px">
-            <canvas id="outbreakCanvas" width="300px" height="300px" style="background: black;"></canvas>
-            <canvas id="quarantineCanvas" width="100px" height="100px" style="background: black;"></canvas>
+        <div style="float:left">
+            Particle Count<input id="particleCount" value="100" /><br />
+            Width<input id="width" value="300" /><br />
+            Height<input id="height" value="300" /><br />
+            Max Velocity<input id="maxVelocity" value="2" /><br />
+            Hot Spot Width<input id="hotSpotWidth" value="50" /><br />
+            Hot Spot Height<input id="hotSpotHeight" value="50" /><br />
+            Hot Spot Max Velocity<input id="hotSpotMaxVelocity" value="2" /><br />
+            Hot Spot Duration<input id="hotSpotDuration" value="200" /><br />
+            Hot Spot Social Distancing<input id="hotSpotSocialDistance" value="10" /><br />
+            Hot Spot Chance<input id="hotSpotChance" value="0.0005" /><br />
+            Infection Rate<input id="infectionRate" value="0.1" /><br />
+            Infection Radius<input id="infectionRadius" value="9" /><br />
+            Initial Infection Count<input id="initialInfectionCount" value="1"/><br />
+            Death Rate<input id="deathRate" value="0.002" /><br />
+            Cure Rate<input id="cureRate" value="0.018"/><br />
+            Reinfection Rate<input id="reinfectionRate" value="0.01"/><br />
+            Social Distancing<input id="socialDistancing" value="21" /><br />
+            Social Distancing Start<input id="socialDistancingStart" value="10" /><br />
+            Test Chance<input id="testChance" value="0.1" /><br />
+            Test Accuracy<input id="testAccuracy" value="0.9" /><br />
+            Test Start<input id="testStart" value="15" /><br />
+            <button id="goButton" value="go" >Go</button>
+            <button id="pauseButton" value="pause" >Pause</button>
         </div>
-        <br />
-        <div width="300px" height="300px" style="width:400px; height:300px">
-            <canvas id="outbreakChart" width="300" height="300" style="background: black;"></canvas>
+        <div style="float:left">
+            <div>
+                <canvas id="outbreakCanvas" width="300px" height="300px" style="background: black; float: left; margin: 5px"></canvas>
+                <div style="float: left; margin: 5px">
+                    Quarantine Zone<br />
+                    <canvas id="quarantineCanvas" width="100px" height="100px" style="background: black;"></canvas>
+                    <br />
+                    Hot Spot Zone<br />
+                    <canvas id="hotSpotCanvas" width="100px" height="100px" style="background: black;"></canvas>
+                    <br />
+                </div>
+            </div>
+            <div style="width:400px; height:300px">
+                <canvas id="outbreakChart" style="background: black; margin: 5px"></canvas>
+            </div>
         </div>
         <script type="text/javascript">
             var goButton = document.getElementById("goButton");
@@ -38,8 +53,13 @@
             var world;
 
             class World{
-                constructor(infectionRate, infectionRadius, particleCount, width, height, maxVelocity, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart){
-                    this.outbreak = new Outbreak("outbreakCanvas", "quarantineCanvas", infectionRate, infectionRadius, particleCount, width, height, maxVelocity, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart);
+                constructor(infectionRate, infectionRadius, particleCount, width, height, maxVelocity, deathRate, cureRate,
+                    reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart,
+                    hotSpotWidth, hotSpotHeight, hotSpotMaxVelocity, hotSpotDuration, hotSpotSocialDistance, hotSpotChance){
+                    this.outbreak = new Outbreak("outbreakCanvas", "quarantineCanvas", "hotSpotCanvas", infectionRate, infectionRadius, particleCount,
+                        width, height, maxVelocity, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart,
+                        testChance, testAccuracy, testStart,
+                        hotSpotWidth, hotSpotHeight, hotSpotMaxVelocity, hotSpotDuration, hotSpotSocialDistance, hotSpotChance);
                     this.outbreak.init();
                     var initialInfectionCount = document.getElementById("initialInfectionCount").value;
                     let current = this.outbreak.particles.head;
@@ -56,8 +76,13 @@
 
                 }
 
-                reset(infectionRate, infectionRadius, particleCount, width, height, maxVelocity, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart){
-                    this.outbreak = new Outbreak("outbreakCanvas", "quarantineCanvas", infectionRate, infectionRadius, particleCount, width, height, maxVelocity, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart);
+                reset(infectionRate, infectionRadius, particleCount, width, height, maxVelocity, deathRate, cureRate,
+                    reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart,
+                    hotSpotWidth, hotSpotHeight, hotSpotMaxVelocity, hotSpotDuration, hotSpotSocialDistance, hotSpotChance){
+                    this.outbreak = new Outbreak("outbreakCanvas", "quarantineCanvas", "hotSpotCanvas", infectionRate, infectionRadius, particleCount,
+                        width, height, maxVelocity, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart,
+                        testChance, testAccuracy, testStart,
+                        hotSpotWidth, hotSpotHeight, hotSpotMaxVelocity, hotSpotDuration, hotSpotSocialDistance, hotSpotChance);
                     this.outbreak.init();
                     var initialInfectionCount = document.getElementById("initialInfectionCount").value;
                     let current = this.outbreak.particles.head;
@@ -73,6 +98,7 @@
                     this.outbreak.step();
                     this.outbreak.draw();
                     this.outbreak.drawQuarantine();
+                    this.outbreak.drawHotSpot();
                     if (this.refreshState === this.refreshRate){
                         var increment = [this.outbreak.normalCount, this.outbreak.infectedCount, this.outbreak.cureCount, this.outbreak.deathCount];
                         this.outbreakGraph.update(increment);
@@ -103,18 +129,30 @@
                 var testChance = parseFloat(document.getElementById("testChance").value);
                 var testAccuracy = parseFloat(document.getElementById("testAccuracy").value);
                 var testStart = parseFloat(document.getElementById("testStart").value);
+                var hotSpotWidth = parseFloat(document.getElementById("hotSpotWidth").value);
+                var hotSpotHeight = parseFloat(document.getElementById("hotSpotHeight").value);
+                var hotSpotMaxVelocity = parseFloat(document.getElementById("hotSpotMaxVelocity").value);
+                var hotSpotDuration = parseFloat(document.getElementById("hotSpotDuration").value);
+                var hotSpotSocialDistance = parseFloat(document.getElementById("hotSpotSocialDistance").value);
+                var hotSpotChance = parseFloat(document.getElementById("hotSpotChance").value);
 
                 if (world){
                     world.go = false;
                     window.setTimeout(function(){
-                        world.reset(infectionRate, infectionRadius, particleCount, width, height, maxVelocity, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart);
+                        world.reset(infectionRate, infectionRadius, particleCount, width, height, maxVelocity,
+                            deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart,
+                            testChance, testAccuracy, testStart,
+                            hotSpotWidth, hotSpotHeight, hotSpotMaxVelocity, hotSpotDuration, hotSpotSocialDistance, hotSpotChance);
 
                         world.go = true;
                         world.loop();
                     }, 100);
                     
                 } else {
-                    world = new World(infectionRate, infectionRadius, particleCount, width, height, maxVelocity, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart);
+                    world = new World(infectionRate, infectionRadius, particleCount, width, height, maxVelocity,
+                        deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart,
+                        testChance, testAccuracy, testStart,
+                        hotSpotWidth, hotSpotHeight, hotSpotMaxVelocity, hotSpotDuration, hotSpotSocialDistance, hotSpotChance);
 
                     world.go = true;
                     world.loop();
