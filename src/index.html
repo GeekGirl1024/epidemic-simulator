@@ -7,13 +7,16 @@
     </head>
     <body>
         Particle Count<input id="particleCount" value="100" /><br />
+        Width<input id="width" value="300" /><br />
+        Height<input id="height" value="300" /><br />
+        Max Velocity<input id="maxVelocity" value="2" /><br />
         Infection Rate<input id="infectionRate" value="0.1" /><br />
-        Infection Radius<input id="infectionRadius" value="0.03" /><br />
+        Infection Radius<input id="infectionRadius" value="9" /><br />
         Initial Infection Count<input id="initialInfectionCount" value="1"/><br />
         Death Rate<input id="deathRate" value="0.002" /><br />
         Cure Rate<input id="cureRate" value="0.018"/><br />
         Reinfection Rate<input id="reinfectionRate" value="0.01"/><br />
-        Social Distancing<input id="socialDistancing" value="0.07" /><br />
+        Social Distancing<input id="socialDistancing" value="21" /><br />
         Social Distancing Start<input id="socialDistancingStart" value="10" /><br />
         Test Chance<input id="testChance" value="0.1" /><br />
         Test Accuracy<input id="testAccuracy" value="0.9" /><br />
@@ -35,8 +38,8 @@
             var world;
 
             class World{
-                constructor(infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart){
-                    this.outbreak = new Outbreak("outbreakCanvas", "quarantineCanvas", infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart);
+                constructor(infectionRate, infectionRadius, particleCount, width, height, maxVelocity, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart){
+                    this.outbreak = new Outbreak("outbreakCanvas", "quarantineCanvas", infectionRate, infectionRadius, particleCount, width, height, maxVelocity, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart);
                     this.outbreak.init();
                     var initialInfectionCount = document.getElementById("initialInfectionCount").value;
                     let current = this.outbreak.particles.head;
@@ -53,8 +56,8 @@
 
                 }
 
-                reset(infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart){
-                    this.outbreak = new Outbreak("outbreakCanvas", "quarantineCanvas", infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart);
+                reset(infectionRate, infectionRadius, particleCount, width, height, maxVelocity, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart){
+                    this.outbreak = new Outbreak("outbreakCanvas", "quarantineCanvas", infectionRate, infectionRadius, particleCount, width, height, maxVelocity, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart);
                     this.outbreak.init();
                     var initialInfectionCount = document.getElementById("initialInfectionCount").value;
                     let current = this.outbreak.particles.head;
@@ -87,6 +90,9 @@
 
             function StartWorld(){
                 var particleCount = parseFloat(document.getElementById("particleCount").value);
+                var width = parseFloat(document.getElementById("width").value);
+                var height = parseFloat(document.getElementById("height").value);
+                var maxVelocity = parseFloat(document.getElementById("maxVelocity").value);
                 var infectionRate = parseFloat(document.getElementById("infectionRate").value);
                 var infectionRadius = parseFloat(document.getElementById("infectionRadius").value);
                 var deathRate = parseFloat(document.getElementById("deathRate").value);
@@ -101,14 +107,14 @@
                 if (world){
                     world.go = false;
                     window.setTimeout(function(){
-                        world.reset(infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart);
+                        world.reset(infectionRate, infectionRadius, particleCount, width, height, maxVelocity, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart);
 
                         world.go = true;
                         world.loop();
                     }, 100);
                     
                 } else {
-                    world = new World(infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart);
+                    world = new World(infectionRate, infectionRadius, particleCount, width, height, maxVelocity, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart);
 
                     world.go = true;
                     world.loop();

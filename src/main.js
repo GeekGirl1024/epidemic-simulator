@@ -133,9 +133,11 @@ class Vector{
 }
 
 class Particle{
-    constructor(deathRate, cureRate, testChance, testAccuracy) {
+    constructor(deathRate, cureRate, testChance, testAccuracy, width, height) {
         this.position = new Vector(0, 0);
         this.velocity = new Vector(0, 0);
+        this.width = width;
+        this.height = height;
         this.health = HEALTH.normal;
         this.refreshState = 0;
         this.refreshRate = 30;
@@ -205,13 +207,13 @@ class Particle{
             this.velocity.y *= -1;
         }
 
-        if (this.position.x > 1){
-            this.position.x = 1 - (this.position.x - 1);
+        if (this.position.x > this.width){
+            this.position.x = this.width - (this.position.x - this.width);
             this.velocity.x *= -1;
         }
 
-        if (this.position.y > 1){
-            this.position.y = 1 - (this.position.y - 1);
+        if (this.position.y > this.height){
+            this.position.y = this.height - (this.position.y - this.height);
             this.velocity.y *= -1;
         }
     }
@@ -236,9 +238,12 @@ class Connection{
 }
 
 class Outbreak{
-    constructor(canvasId, quarantineCanvasId, infectionRate, infectionRadius, particleCount, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart){
+    constructor(canvasId, quarantineCanvasId, infectionRate, infectionRadius, particleCount, width, height, maxVelocity, deathRate, cureRate, reinfectionRate, socialDistancing, socialDistancingStart, testChance, testAccuracy, testStart){
         this.particles = new List();
         this.quarantinedParticles = new List();
+        this.width = width;
+        this.height = height;
+        this.maxVelocity = maxVelocity;
         this.canvasId = canvasId;
         this.quarantineCanvasId = quarantineCanvasId;
         this.canvas = document.getElementById(this.canvasId);
@@ -464,7 +469,7 @@ class Outbreak{
         while (current){
             let particle = current.data;
             this.context.beginPath();
-            this.context.arc(particle.position.x * width, particle.position.y * height,2,0,2*Math.PI);
+            this.context.arc(particle.position.x / this.width * width, particle.position.y / this.height * height,2,0,2*Math.PI);
             this.context.fillStyle = particle.color();
             this.context.fill();
             current = current.next;
@@ -472,11 +477,11 @@ class Outbreak{
 
         for (var i = 0; i < this.connections.length; i++) {
             this.context.beginPath();
-            let x = this.connections[i].node1.position.x * width;
-            let y = this.connections[i].node1.position.y * height;
+            let x = this.connections[i].node1.position.x / this.width * width;
+            let y = this.connections[i].node1.position.y / this.height * height;
             this.context.moveTo(x, y);
-            x = this.connections[i].node2.position.x * width;
-            y = this.connections[i].node2.position.y * height;
+            x = this.connections[i].node2.position.x / this.width * width;
+            y = this.connections[i].node2.position.y / this.height * height;
             this.context.lineTo(x, y);
             this.context.strokeStyle = '#FFFFFF';
             this.context.lineWidth = 1;
@@ -492,7 +497,7 @@ class Outbreak{
         while (current){
             let particle = current.data;
             this.quarantineContext.beginPath();
-            this.quarantineContext.arc(particle.position.x * width, particle.position.y * height,2,0,2*Math.PI);
+            this.quarantineContext.arc(particle.position.x / this.width * width, particle.position.y / this.height * height,2,0,2*Math.PI);
             this.quarantineContext.fillStyle = particle.color();
             this.quarantineContext.fill();
             current = current.next;
@@ -500,9 +505,11 @@ class Outbreak{
     }
 
     randomParticle(){
-        let ret = new Particle(this.deathRate, this.cureRate, this.testChance, this.testAccuracy);
-        ret.position = new Vector(Math.random(), Math.random());
-        ret.velocity = new Vector(Math.random()/100 - .005, Math.random()/100 - .005);
+        let ret = new Particle(this.deathRate, this.cureRate, this.testChance, this.testAccuracy, this.width, this.height);
+        ret.position = new Vector(Math.random() * this.width, Math.random() * this.height);
+        let velocity = Math.random() * this.maxVelocity * 2 - this.maxVelocity;
+        let angle = Math.random()*2*Math.PI;
+        ret.velocity = new Vector(velocity * Math.cos(angle), velocity * Math.sin(angle));
 
         return ret;
     }
